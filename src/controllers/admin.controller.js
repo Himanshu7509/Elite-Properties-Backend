@@ -358,7 +358,6 @@ export const updatePropertyStatus = async (req, res) => {
 export const createPropertyPost = async (req, res) => {
   try {
     const {
-      userId,
       propertyType,
       priceTag,
       price,
@@ -387,13 +386,6 @@ export const createPropertyPost = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID is required"
-      });
-    }
-
     if (!city) {
       return res.status(400).json({
         success: false,
@@ -401,18 +393,9 @@ export const createPropertyPost = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    const user = await Auth.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
-    }
-
-    // Create new property post
+    // Create new property post with admin as the user
     const propertyPost = await PropertyPost.create({
-      userId,
+      userId: req.user.id, // Use authenticated admin's ID
       propertyType: propertyType || 'owner',
       priceTag,
       price,
