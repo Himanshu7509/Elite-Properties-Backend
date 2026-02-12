@@ -135,6 +135,35 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+// @desc    Get property post by ID (admin only)
+// @route   GET /api/admin/properties/:id
+// @access  Private/Admin
+export const getPropertyById = async (req, res) => {
+  try {
+    const propertyPost = await PropertyPost.findById(req.params.id)
+      .populate('userId', 'fullName email phoneNo role');
+
+    if (!propertyPost) {
+      return res.status(404).json({
+        success: false,
+        message: "Property post not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      propertyPost
+    });
+  } catch (error) {
+    console.error('Get property by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get all property posts (admin only)
 // @route   GET /api/admin/properties
 // @access  Private/Admin
@@ -290,6 +319,112 @@ export const updatePropertyStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Update property status error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create property post (admin only)
+// @route   POST /api/admin/properties
+// @access  Private/Admin
+export const createPropertyPost = async (req, res) => {
+  try {
+    const {
+      userId,
+      propertyType,
+      priceTag,
+      price,
+      propertyDetails,
+      propertyPics,
+      propertyVideos,
+      contactInfo,
+      isFurnished,
+      hasParking,
+      propertyCategory,
+      bhk,
+      floor,
+      propertyAge,
+      facing,
+      buildArea,
+      carpetArea,
+      locality,
+      city,
+      state,
+      pincode,
+      landmark,
+      amenities,
+      nearbyPlaces,
+      propertyStatus,
+      isActive
+    } = req.body;
+
+    // Validate required fields
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required"
+      });
+    }
+
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: "City is required"
+      });
+    }
+
+    // Check if user exists
+    const user = await Auth.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Create new property post
+    const propertyPost = await PropertyPost.create({
+      userId,
+      propertyType: propertyType || 'owner',
+      priceTag,
+      price,
+      propertyDetails,
+      propertyPics: propertyPics || [],
+      propertyVideos: propertyVideos || [],
+      contactInfo,
+      isFurnished: isFurnished || false,
+      hasParking: hasParking || false,
+      propertyCategory,
+      bhk,
+      floor,
+      propertyAge,
+      facing,
+      buildArea,
+      carpetArea,
+      locality,
+      city,
+      state,
+      pincode,
+      landmark,
+      amenities: amenities || [],
+      nearbyPlaces: nearbyPlaces || [],
+      propertyStatus: propertyStatus || 'available',
+      isActive: isActive !== undefined ? isActive : true
+    });
+
+    // Populate user info in response
+    await propertyPost.populate('userId', 'fullName email phoneNo');
+
+    res.status(201).json({
+      success: true,
+      message: "Property post created successfully by admin",
+      propertyPost
+    });
+  } catch (error) {
+    console.error('Admin create property post error:', error);
     res.status(500).json({
       success: false,
       message: "Server Error",

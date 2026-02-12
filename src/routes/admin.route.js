@@ -6,6 +6,7 @@ import {
   getAllProperties,
   deleteProperty,
   updatePropertyStatus,
+  createPropertyPost,
   getAdminStats
 } from "../controllers/admin.controller.js";
 import { protect, adminOnly } from "../middleware/auth.middleware.js";
@@ -23,6 +24,7 @@ router.delete("/users/:id", deleteUser);
 
 // Property management routes
 router.get("/properties", getAllProperties);
+router.post("/properties", createPropertyPost);
 router.delete("/properties/:id", deleteProperty);
 router.put("/properties/:id/status", updatePropertyStatus);
 
