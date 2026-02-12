@@ -4,9 +4,14 @@ import {
   getUserById,
   deleteUser,
   getAllProperties,
+  getPropertyById,
   deleteProperty,
+  deletePropertyPicture,
+  deletePropertyVideo,
   updatePropertyStatus,
   createPropertyPost,
+  uploadPropertyPictures,
+  uploadPropertyVideos,
   getAdminStats
 } from "../controllers/admin.controller.js";
 import { protect, adminOnly } from "../middleware/auth.middleware.js";
@@ -24,7 +29,12 @@ router.delete("/users/:id", deleteUser);
 
 // Property management routes
 router.get("/properties", getAllProperties);
+router.get("/properties/:id", getPropertyById);
 router.post("/properties", createPropertyPost);
+router.post("/properties/upload/pictures/:id", upload.array('pictures', 10), uploadPropertyPictures);
+router.post("/properties/upload/videos/:id", upload.array('videos', 5), uploadPropertyVideos);
+router.delete("/properties/pictures/:id", deletePropertyPicture);
+router.delete("/properties/videos/:id", deletePropertyVideo);
 router.delete("/properties/:id", deleteProperty);
 router.put("/properties/:id/status", updatePropertyStatus);
 

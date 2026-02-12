@@ -2,6 +2,31 @@ import Auth from "../model/auth.model.js";
 import Profile from "../model/profile.model.js";
 import PropertyPost from "../model/propertyPost.model.js";
 import s3 from "../config/s3.js";
+import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+
+// Configure multer with memory storage
+const storage = multer.memoryStorage();
+export const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit per file
+  }
+});
+
+// Upload image/video to AWS S3
+const uploadToS3 = async (file, folder) => {
+  const fileKey = `elite-properties/${folder}/${uuidv4()}-${Date.now()}-${file.originalname}`;
+  const params = {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: fileKey,
+    Body: file.buffer,
+    ContentType: file.mimetype,
+  };
+
+  const uploaded = await s3.upload(params).promise();
+  return uploaded.Location; // Return public URL
+};
 
 // Helper function to delete media from S3
 const deleteMediaFromS3 = async (mediaUrl) => {
@@ -425,6 +450,192 @@ export const createPropertyPost = async (req, res) => {
     });
   } catch (error) {
     console.error('Admin create property post error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload property pictures (admin only)
+// @route   POST /api/admin/properties/upload/pictures/:id
+// @access  Private/Admin
+export const uploadPropertyPictures = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+
+    // Check if property post exists (no ownership check for admin)
+    const propertyPost = await PropertyPost.findById(req.params.id);
+    
+    if (!propertyPost) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property post not found'
+      });
+    }
+
+    // Upload all pictures to S3
+    const pictureUrls = [];
+    for (const file of req.files) {
+      const url = await uploadToS3(file, 'property-pictures');
+      pictureUrls.push(url);
+    }
+
+    // Update property post with new picture URLs
+    propertyPost.propertyPics = [...(propertyPost.propertyPics || []), ...pictureUrls];
+    await propertyPost.save();
+
+    res.status(200).json({
+      success: true,
+      message: `${req.files.length} picture(s) uploaded successfully`,
+      pictures: pictureUrls
+    });
+  } catch (error) {
+    console.error('Admin upload property pictures error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload property videos (admin only)
+// @route   POST /api/admin/properties/upload/videos/:id
+// @access  Private/Admin
+export const uploadPropertyVideos = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+
+    // Check if property post exists (no ownership check for admin)
+    const propertyPost = await PropertyPost.findById(req.params.id);
+    
+    if (!propertyPost) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property post not found'
+      });
+    }
+
+    // Upload all videos to S3
+    const videoUrls = [];
+    for (const file of req.files) {
+      const url = await uploadToS3(file, 'property-videos');
+      videoUrls.push(url);
+    }
+
+    // Update property post with new video URLs
+    propertyPost.propertyVideos = [...(propertyPost.propertyVideos || []), ...videoUrls];
+    await propertyPost.save();
+
+    res.status(200).json({
+      success: true,
+      message: `${req.files.length} video(s) uploaded successfully`,
+      videos: videoUrls
+    });
+  } catch (error) {
+    console.error('Admin upload property videos error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete property picture (admin only)
+// @route   DELETE /api/admin/properties/pictures/:id
+// @access  Private/Admin
+export const deletePropertyPicture = async (req, res) => {
+  try {
+    const { pictureUrl } = req.body;
+    
+    if (!pictureUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Picture URL is required'
+      });
+    }
+
+    // Find property post
+    const propertyPost = await PropertyPost.findById(req.params.id);
+    
+    if (!propertyPost) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property post not found'
+      });
+    }
+
+    // Remove picture URL from array
+    propertyPost.propertyPics = propertyPost.propertyPics.filter(url => url !== pictureUrl);
+    await propertyPost.save();
+
+    // Delete from S3
+    await deleteMediaFromS3(pictureUrl);
+
+    res.status(200).json({
+      success: true,
+      message: 'Picture deleted successfully'
+    });
+  } catch (error) {
+    console.error('Admin delete property picture error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete property video (admin only)
+// @route   DELETE /api/admin/properties/videos/:id
+// @access  Private/Admin
+export const deletePropertyVideo = async (req, res) => {
+  try {
+    const { videoUrl } = req.body;
+    
+    if (!videoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video URL is required'
+      });
+    }
+
+    // Find property post
+    const propertyPost = await PropertyPost.findById(req.params.id);
+    
+    if (!propertyPost) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property post not found'
+      });
+    }
+
+    // Remove video URL from array
+    propertyPost.propertyVideos = propertyPost.propertyVideos.filter(url => url !== videoUrl);
+    await propertyPost.save();
+
+    // Delete from S3
+    await deleteMediaFromS3(videoUrl);
+
+    res.status(200).json({
+      success: true,
+      message: 'Video deleted successfully'
+    });
+  } catch (error) {
+    console.error('Admin delete property video error:', error);
     res.status(500).json({
       success: false,
       message: "Server Error",
