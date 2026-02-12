@@ -12,6 +12,7 @@ import {
   createPropertyPost,
   uploadPropertyPictures,
   uploadPropertyVideos,
+  upload,
   getAdminStats
 } from "../controllers/admin.controller.js";
 import { protect, adminOnly } from "../middleware/auth.middleware.js";
