@@ -7,6 +7,7 @@ import {
   updatePropertyPost,
   deletePropertyPost,
   getPropertyStats,
+  filterProperties,
   uploadPropertyPictures,
   uploadPropertyVideos,
   deletePropertyPicture,
@@ -20,6 +21,7 @@ const router = express.Router();
 // Public routes
 router.get("/posts", getAllPropertyPosts);
 router.get("/posts/:id", getPropertyPostById);
+router.get("/filter", filterProperties);
 router.get("/stats", getPropertyStats);
 
 // Protected routes

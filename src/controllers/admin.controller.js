@@ -1,6 +1,8 @@
 import Auth from "../model/auth.model.js";
 import Profile from "../model/profile.model.js";
 import PropertyPost from "../model/propertyPost.model.js";
+import Contact from "../model/contact.model.js";
+import ScheduleMeeting from "../model/scheduleMeeting.model.js";
 import s3 from "../config/s3.js";
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
@@ -302,6 +304,42 @@ export const deleteProperty = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete property error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update property post (admin only)
+// @route   PUT /api/admin/properties/:id
+// @access  Private/Admin
+export const updatePropertyPost = async (req, res) => {
+  try {
+    const propertyPost = await PropertyPost.findById(req.params.id);
+
+    if (!propertyPost) {
+      return res.status(404).json({
+        success: false,
+        message: "Property post not found"
+      });
+    }
+
+    // Update property post (admin can update any property)
+    const updatedPropertyPost = await PropertyPost.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('userId', 'fullName email phoneNo role');
+
+    res.status(200).json({
+      success: true,
+      message: "Property post updated successfully by admin",
+      propertyPost: updatedPropertyPost
+    });
+  } catch (error) {
+    console.error('Admin update property post error:', error);
     res.status(500).json({
       success: false,
       message: "Server Error",
@@ -667,6 +705,275 @@ export const getAdminStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Get admin stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all contact inquiries (admin only)
+// @route   GET /api/admin/contacts
+// @access  Private/Admin
+export const getAllContactInquiries = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get all contacts with property info
+    const contacts = await Contact.find()
+      .populate('propertyId', 'propertyType propertyCategory city price')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const total = await Contact.countDocuments();
+
+    res.status(200).json({
+      success: true,
+      contacts,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalContacts: total,
+        hasNextPage: skip + parseInt(limit) < total,
+        hasPrevPage: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Get all contact inquiries error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get contact inquiry by ID (admin only)
+// @route   GET /api/admin/contacts/:id
+// @access  Private/Admin
+export const getContactInquiryById = async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id)
+      .populate('propertyId', 'propertyType propertyCategory city price');
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact inquiry not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      contact
+    });
+  } catch (error) {
+    console.error('Get contact inquiry by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete contact inquiry (admin only)
+// @route   DELETE /api/admin/contacts/:id
+// @access  Private/Admin
+export const deleteContactInquiry = async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id);
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact inquiry not found"
+      });
+    }
+
+    await Contact.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Contact inquiry deleted successfully"
+    });
+  } catch (error) {
+    console.error('Delete contact inquiry error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all scheduled meetings (admin only)
+// @route   GET /api/admin/schedule-meetings
+// @access  Private/Admin
+export const getAllScheduledMeetingsAdmin = async (req, res) => {
+  try {
+    const {
+      status,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Build filter object
+    let filter = {};
+
+    // Filter by status
+    if (status) {
+      filter.meetingStatus = status;
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate);
+      if (endDate) filter.date.$lte = new Date(endDate);
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get all scheduled meetings with property info
+    const meetings = await ScheduleMeeting.find(filter)
+      .populate('propertyId', 'propertyType propertyCategory city price')
+      .sort({ date: 1 }) // Sort by date ascending
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const total = await ScheduleMeeting.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      meetings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalMeetings: total,
+        hasNextPage: skip + parseInt(limit) < total,
+        hasPrevPage: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Get all scheduled meetings error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get scheduled meeting by ID (admin only)
+// @route   GET /api/admin/schedule-meetings/:id
+// @access  Private/Admin
+export const getScheduledMeetingByIdAdmin = async (req, res) => {
+  try {
+    const meeting = await ScheduleMeeting.findById(req.params.id)
+      .populate('propertyId', 'propertyType propertyCategory city price');
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Scheduled meeting not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      meeting
+    });
+  } catch (error) {
+    console.error('Get scheduled meeting by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update meeting status (admin only)
+// @route   PUT /api/admin/schedule-meetings/:id/status
+// @access  Private/Admin
+export const updateMeetingStatusAdmin = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required"
+      });
+    }
+
+    // Validate status value
+    const validStatuses = ['scheduled', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Must be one of: scheduled, completed, cancelled"
+      });
+    }
+
+    const meeting = await ScheduleMeeting.findById(req.params.id);
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Scheduled meeting not found"
+      });
+    }
+
+    // Update meeting status
+    meeting.meetingStatus = status;
+    await meeting.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Meeting status updated successfully",
+      meeting
+    });
+  } catch (error) {
+    console.error('Update meeting status error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete scheduled meeting (admin only)
+// @route   DELETE /api/admin/schedule-meetings/:id
+// @access  Private/Admin
+export const deleteScheduledMeetingAdmin = async (req, res) => {
+  try {
+    const meeting = await ScheduleMeeting.findById(req.params.id);
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Scheduled meeting not found"
+      });
+    }
+
+    await ScheduleMeeting.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Scheduled meeting deleted successfully"
+    });
+  } catch (error) {
+    console.error('Delete scheduled meeting error:', error);
     res.status(500).json({
       success: false,
       message: "Server Error",

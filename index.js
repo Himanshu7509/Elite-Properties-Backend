@@ -8,6 +8,7 @@ import authRoutes from "./src/routes/auth.route.js";
 import profileRoutes from "./src/routes/profile.route.js";
 import propertyRoutes from "./src/routes/property.route.js";
 import adminRoutes from "./src/routes/admin.route.js";
+import contactRoutes from "./src/routes/contact.route.js";
 
 dotenv.config()
 const app = express()
@@ -26,6 +27,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/property", propertyRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api", contactRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");

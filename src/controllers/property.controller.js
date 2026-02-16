@@ -499,6 +499,106 @@ export const deletePropertyPicture = async (req, res) => {
   }
 };
 
+// @desc    Filter properties by location, price range, and property type
+// @route   GET /api/property/filter
+// @access  Public
+export const filterProperties = async (req, res) => {
+  try {
+    const {
+      location,
+      minPrice,
+      maxPrice,
+      propertyType,
+      propertyCategory,
+      city,
+      state,
+      bhk,
+      isFurnished,
+      hasParking,
+      facing,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Build filter object
+    let filter = { isActive: true };
+
+    // Location-based filtering (search in city, state, locality)
+    if (location) {
+      const locationRegex = new RegExp(location, 'i');
+      filter.$or = [
+        { city: locationRegex },
+        { state: locationRegex },
+        { locality: locationRegex }
+      ];
+    }
+
+    // City filtering
+    if (city) filter.city = new RegExp(city, 'i');
+    
+    // State filtering
+    if (state) filter.state = new RegExp(state, 'i');
+
+    // Property type filtering
+    if (propertyType) filter.propertyType = propertyType;
+    
+    // Property category filtering
+    if (propertyCategory) filter.propertyCategory = propertyCategory;
+
+    // BHK filtering
+    if (bhk) filter.bhk = parseInt(bhk);
+
+    // Furnished filtering
+    if (isFurnished !== undefined) filter.isFurnished = isFurnished === 'true';
+
+    // Parking filtering
+    if (hasParking !== undefined) filter.hasParking = hasParking === 'true';
+
+    // Facing filtering
+    if (facing) filter.facing = facing;
+    
+    // Price range filtering
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = parseInt(minPrice);
+      if (maxPrice) filter.price.$lte = parseInt(maxPrice);
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get filtered property posts with user info
+    const propertyPosts = await PropertyPost.find(filter)
+      .populate('userId', 'fullName email phoneNo')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const total = await PropertyPost.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      message: "Properties filtered successfully",
+      propertyPosts,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalProperties: total,
+        hasNextPage: skip + parseInt(limit) < total,
+        hasPrevPage: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Filter properties error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get property statistics
 // @route   GET /api/property/stats
 // @access  Public
